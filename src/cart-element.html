@@ -1,0 +1,122 @@
+<!--
+@license
+Copyright (c) 2016 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<link rel="import" href="../bower_components/polymer/polymer.html">
+<link rel="import" href="product-item.html">
+<link rel="import" href="shared-styles.html">
+<link rel="import" href="../bower_components/paper-toast/paper-toast.html">
+<link rel="import" href="../bower_components/iron-icons/iron-icons.html">
+
+<dom-module id="cart-element">
+  <template>
+    <style include="shared-styles">
+      :host {
+        /*display: block;*/
+        /*padding: 10px;*/
+      }
+      h3 {
+         margin: 0;
+      }
+    </style>
+
+    <firebase-query
+      id="query"
+      path="/purchasedProducts"
+      order-by-child="cart"
+      start-at="[[cartId]]"
+      end-at="[[cartId]]"
+      data="{{data}}">
+    </firebase-query>
+
+    <div class="card">
+      <h3>[[cartName]]</h3>
+         <!-- Stationary empty item -->
+         <product-item id="emptyItem" cart-id="[[cartId]]" on-blur="_submitProduct" on-keydown="_enterPress"></product-item>
+         <hr>
+         <div class="products">
+            <!-- Load the items from Firebase -->
+            <iron-swipeable-container on-iron-swipe="_removeProduct">
+               <template id="productList" is="dom-repeat" items="{{data}}" as="product">
+                  <!-- <hr> -->
+                  <product-item
+                     class="purchased"
+                     name="{{product.name}}"
+                     quantity="{{product.quantity}}"
+                     price="{{product.price}}"
+                     cart-id="[[cartId]]">
+                  </product-item>
+               </template>
+            </iron-swipeable-container>
+
+         </div>
+    </div>
+  </template>
+
+  <script>
+    Polymer({
+      is: 'cart-element',
+      properties: {
+         cartId: {
+            type: String,
+            observer: '_cartIdObserver'
+         },
+         cartName: String,
+         data: {
+            type: Array,
+            observer: '_dataChanged'
+         },
+         savedItem: {
+            type: Object
+         }
+      },
+
+      _cartIdObserver: function(newData, oldData) {
+      },
+      _dataChanged: function (newData, oldData) {
+         //Do something when the query returns values
+      },
+      _submitProduct: function () {
+         if (this._validate()) {
+            console.log("Valid product");
+            // Add the product to Firebase
+            this.$.emptyItem._pushProduct();
+            // Clear the empty item
+            this.$.emptyItem._clear();
+         }
+      },
+      _validate: function () {
+         return (this.$.emptyItem.valid)
+      },
+      _removeProduct: function (e) {
+         const index = this.$.productList.indexForElement(e.detail.target);
+         const item = this.data[index];
+         this.savedItem = item;
+         var dbRef = firebase.database().ref("/purchasedProducts/" + item.$key);
+         dbRef.remove(function () {
+            // TODO: Add functionality to undo
+            var toast = document.querySelector("my-app").shadowRoot.querySelector("#removedToast");
+            toast.text = "Removed something";
+            toast.open();
+         })
+              .then(function () {
+                 console.log("Remove succeeded");
+              })
+              .catch(function (error) {
+                 console.log("Remove failed: " + error);
+              });
+      },
+      _enterPress: function (e) {
+         if (e.keyCode === 13) {
+            this._submitProduct();
+         }
+      }
+    });
+  </script>
+</dom-module>

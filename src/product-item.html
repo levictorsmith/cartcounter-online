@@ -1,0 +1,128 @@
+<!--
+@license
+Copyright (c) 2016 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<link rel="import" href="../bower_components/polymer/polymer.html">
+<link rel="import" href="includes.html">
+<link rel="import" href="cc-money.html">
+<link rel="import" href="shared-styles.html">
+
+<dom-module id="product-item">
+  <template>
+    <style include="shared-styles">
+
+      .p-container {
+         display: inline-flex;
+         justify-content: center;
+         width: 100%;
+      }
+
+      paper-input, paper-input-container {
+         margin-left: 5px;
+         margin-right: 5px;
+      }
+      #name {
+         width: 15em;
+      }
+      #quantity {
+         width: 5em;
+      }
+      #price {
+         width: 10em;
+      }
+
+    </style>
+       <div class="p-container swipe">
+         <paper-input
+            id="name"
+            label="Product"
+            value="{{name}}"
+            required
+            auto-validate
+            error-message="Enter name">
+         </paper-input>
+         <paper-input-container id="quantity" auto-validate>
+            <label># of</label>
+            <input
+               id="quantityInput"
+               is="iron-input"
+               type="number"
+               value-as-number="{{quantity::input}}"
+               required
+               pattern="[0-9]*" on-blur="_fillQuant">
+            <paper-input-error>Enter quantity</paper-input-error>
+         </paper-input-container>
+         <cc-money
+            id="price"
+            price="{{price}}">
+         </cc-money>
+       </div>
+
+  </template>
+
+  <script>
+    Polymer({
+      is: 'product-item',
+      properties: {
+         price: {
+            value: "0.00",
+            type: String,
+            notify: true,
+            observer: '_validate'
+         },
+         quantity: {
+            type: Number,
+            notify: true,
+            observer: '_validate'
+         },
+         name: {
+            value: "",
+            type: String,
+            notify: true,
+            observer: '_validate'
+         },
+         cartId: String,
+         valid: {
+            type: Boolean,
+            notify: true,
+            value: false
+         }
+      },
+      _validate: function (newVal, oldVal) {
+         if (this.name && this.quantity && this.price) {
+            this.valid = true;
+         } else {
+            this.valid = false;
+         }
+      },
+      _fillQuant: function () {
+         // if (!this.quantity) {
+         //    this.quantity = 1;
+         // }
+      },
+      _pushProduct: function () {
+         var dbRef = firebase.database().ref("/purchasedProducts");
+         var newProduct = dbRef.push();
+         newProduct.set({
+            'cart': this.cartId,
+            'name': this.name,
+            'price': this.price,
+            'quantity': this.quantity
+         });
+         console.log("Pushed Product");
+      },
+      _clear: function () {
+         this.$.name.value = "";
+         this.$.quantityInput.value = "";
+         this.$.price.price = "0.00";
+      }
+    });
+
+  </script>
+</dom-module>

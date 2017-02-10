@@ -1,0 +1,83 @@
+<!--
+@license
+Copyright (c) 2016 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<link rel="import" href="../bower_components/polymer/polymer.html">
+<link rel="import" href="includes.html">
+
+<dom-module id="cc-money">
+  <template>
+    <style include="shared-styles">
+      #sign {
+         margin-right: 4px;
+      }
+    </style>
+      <paper-input
+         id="priceInput"
+         label="Price"
+         value="{{displayPrice}}"
+         required
+         auto-validate
+         error-message="Error">
+         <div prefix id="sign">$</div>
+      </paper-input>
+   </template>
+
+  <script>
+    Polymer({
+      is: 'cc-money',
+      properties: {
+         price: {
+            type: Number,
+            notify: true,
+            observer: '_updatePrice'
+         },
+         displayPrice: {
+            type: String,
+            value: "0.00",
+            observer: '_changeDisplay',
+            notify: true
+         },
+         valid: {
+            type: Boolean,
+            value: false,
+            notify: true
+         }
+      },
+      _changeDisplay: function (newValue, oldValue) {
+         // Change the type for consistency
+         if (typeof(newValue) === "number") {
+            newValue = String(newValue);
+         }
+         var final = newValue.replace(/\D*/g, "");
+         var number = Number(final);
+         final = String(number);
+         if (number < 100) {
+            //Add a zero
+            final = "0" + final;
+            if (number < 10) {
+               final = "0" + final;
+            }
+         }
+         this.price = Number(final);
+         final = final.slice(0, final.length - 2) + "." + final.slice(final.length - 2);
+         this.displayPrice = final;
+      },
+      _updatePrice: function (newValue, oldValue) {
+         this.displayPrice = String(newValue).replace(/\D*/g,"");
+         if (this.displayPrice == "0.00" || this.$.priceInput.value == "0.00") {
+            this.valid = false;
+         } else {
+            this.valid = true;
+         }
+      }
+    });
+
+  </script>
+</dom-module>
