@@ -1,3 +1,6 @@
+# cartcounter-online
+CartCounter - Keep track of how much you spend, now online!
+
 # Polymer App Toolbox - Starter Kit
 
 [![Build Status](https://travis-ci.org/PolymerElements/polymer-starter-kit.svg?branch=master)](https://travis-ci.org/PolymerElements/polymer-starter-kit)
