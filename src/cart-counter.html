@@ -1,0 +1,390 @@
+<!--
+@license
+Copyright (c) 2016 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<link rel="import" href="../bower_components/polymer/polymer.html">
+<link rel="import" href="../bower_components/app-layout/app-drawer/app-drawer.html">
+<link rel="import" href="../bower_components/app-layout/app-drawer-layout/app-drawer-layout.html">
+<link rel="import" href="../bower_components/app-layout/app-header/app-header.html">
+<link rel="import" href="../bower_components/app-layout/app-header-layout/app-header-layout.html">
+<link rel="import" href="../bower_components/app-layout/app-scroll-effects/app-scroll-effects.html">
+<link rel="import" href="../bower_components/app-layout/app-toolbar/app-toolbar.html">
+<link rel="import" href="../bower_components/app-route/app-location.html">
+<link rel="import" href="../bower_components/app-route/app-route.html">
+<link rel="import" href="../bower_components/paper-dialog/paper-dialog.html">
+<link rel="import" href="../bower_components/paper-fab/paper-fab.html">
+<link rel="import" href="../bower_components/paper-menu/paper-menu.html">
+<link rel="import" href="../bower_components/paper-item/paper-item.html">
+<link rel="import" href="../bower_components/iron-dropdown/iron-dropdown.html">
+<link rel="import" href="../bower_components/paper-toolbar/paper-toolbar.html">
+<link rel="import" href="../bower_components/iron-icon/iron-icon.html">
+<link rel="import" href="../bower_components/paper-fab-transitions/paper-fab-transitions.html">
+<link rel="import" href="shared-styles.html">
+<link rel="import" href="undo-toast.html">
+<link rel="import" href="cart-element.html">
+<link rel="import" href="settings-element.html">
+<link rel="import" href="includes.html">
+<script src="https://code.jquery.com/jquery-2.1.4.js"></script>
+<dom-module id="cart-counter">
+  <template>
+    <style include="shared-styles">
+      :host {
+      }
+
+      app-header {
+        color: #fff;
+        background-color: var(--app-primary-color);
+      }
+      app-header paper-icon-button {
+        --paper-icon-button-ink-color: white;
+      }
+
+      .drawer-list {
+        margin: 0 20px;
+      }
+
+      .drawer-list a {
+        display: block;
+        padding: 0 16px;
+        text-decoration: none;
+        color: var(--app-secondary-color);
+        line-height: 40px;
+      }
+
+      .drawer-list a.iron-selected {
+        color: black;
+        font-weight: bold;
+      }
+      .blue {
+         margin: 1em 0 1em 1em;
+         color: white;
+         background-color: var(--app-primary-color);
+      }
+      #emptyMessage {
+         color: var(--paper-grey-600);
+         padding: 2em;
+      }
+      .dropdown-content {
+         position: absolute;
+         bottom: 0;
+         left: 0;
+         width: 100%;
+         background: var(--app-primary-color);
+         visibility: hidden;
+      }
+      paper-fab {
+         position: absolute;
+         right: 0;
+         bottom: 0;
+         margin-right: 1em;
+         margin-bottom: 1em;
+         --paper-fab-background: var(--app-secondary-accent-color);
+         --paper-fab-keyboard-focus-background: var(--app-secondary-accent-color);
+      }
+      #canUseDialog {
+         padding-bottom: 1em;
+      }
+    </style>
+    <firebase-app
+      id="fireApp"
+      auth-domain="cart-counter.firebaseapp.com"
+      database-url="https://cart-counter.firebaseio.com"
+      api-key="AIzaSyAHfaL6pPo6li86cjdMU_Q9T6ztXo_V9-U"
+      storage-bucket="cart-counter.appspot.com"
+      messaging-sender-id="76645385738">
+    </firebase-app>
+    <firebase-auth id="auth" user="{{user}}" on-error="_authError">
+    </firebase-auth>
+    <firebase-query
+         id="cartQuery"
+         path="/carts"
+         order-by-child="user"
+         start-at="[[user.uid]]"
+         end-at="[[user.uid]]"
+         limit-by-last="3"
+         data="{{data}}">
+    </firebase-query>
+    <undo-toast id="toast"></undo-toast>
+    <paper-dialog id="cartDialog" entry-animation="scale-up-animation" exit-animation="fade-out-animation" with-backdrop>
+       <h2>Enter Cart Name</h2>
+       <div style="display: inline-flex;">
+          <paper-input id="cartName" label="Name" auto-validate required error-message="Enter name"></paper-input>
+          <paper-button class="blue" on-click="_addCart" raised>Add Cart</paper-button>
+       </div>
+    </paper-dialog>
+    <paper-dialog id="canUseDialog" entry-animation="scale-up-animation" exit-animation="fade-out-animation" with-backdrop>
+    </paper-dialog>
+    <paper-dialog id="voiceDialog" entry-animation="scale-up-animation" exit-animation="scale-down-animation" with-backdrop></paper-dialog>
+    <app-location route="{{route}}"></app-location>
+    <app-route
+        route="{{route}}"
+        pattern="/:page"
+        data="{{routeData}}"
+        tail="{{subroute}}"></app-route>
+
+    <app-drawer-layout fullbleed>
+      <!-- Drawer content -->
+      <app-drawer id="drawer">
+        <app-toolbar>Menu</app-toolbar>
+        <iron-selector selected="[[page]]" attr-for-selected="name" class="drawer-list" role="navigation">
+           <a name="cart" href="/cart">Cart</a>
+          <a name="settings" href="/settings">Settings</a>
+        </iron-selector>
+      </app-drawer>
+
+      <!-- Main content -->
+      <app-header-layout has-scrolling-region>
+
+        <app-header condenses reveals effects="waterfall">
+          <app-toolbar>
+            <paper-icon-button icon="my-icons:menu" drawer-toggle></paper-icon-button>
+            <div main-title>CartCounter</div>
+            <template is="dom-if" if="{{user}}">
+               <paper-icon-button icon="icons:add-shopping-cart" on-click="_openDialog"></paper-icon-button>
+            </template>
+            <paper-button type="button" on-click="_toggleSignIn">
+               <template is="dom-if" if="{{user}}">
+                  Log out
+               </template>
+               <template is="dom-if" if="{{!user}}">
+                  Log in
+               </template>
+            </paper-button>
+          </app-toolbar>
+        </app-header>
+
+        <iron-pages
+            selected="[[page]]"
+            attr-for-selected="name"
+            fallback-selection="view404"
+            role="main"
+            on-tap="_hideToolbar">
+            <template is="dom-if" if="{{user}}">
+               <settings-element name="settings"></settings-element>
+            </template>
+
+          <div name="cart" id="carts" >
+            <template is="dom-if" if="{{user}}">
+                <template id="cartTemplate" is="dom-repeat" items="{{data}}" as="cart">
+                   <cart-element cart-id="{{cart.$key}}" cart-name="{{cart.name}}"></cart-element>
+                </template>
+                <template id="emptyMessageTemplate" is="dom-if" if="{{empty}}">
+                   <h4 id="emptyMessage">Hmmm, looks empty. Try making a new cart!</h4>
+                </template>
+            </template>
+          </div>
+          <my-view404 name="view404"></my-view404>
+        </iron-pages>
+      </app-header-layout>
+    </app-drawer-layout>
+      <!-- <paper-fab-morph id="show-toolbar" vertical-align="bottom" horizontal-align="right"> -->
+      <paper-fab id="toolbarFab" icon="icons:more-horiz" class="dropdown-trigger" on-click="_showToolbar"></paper-fab>
+      <paper-toolbar id="toolbarContent" class="dropdown-content" justify="around" on-blur="_hideToolbar">
+         <paper-icon-button icon="my-icons:camera" on-tap="_startOcr"></paper-icon-button>
+         <paper-icon-button icon="my-icons:mic" on-tap="_startVoice"></paper-icon-button>
+         <paper-icon-button icon="my-icons:search" on-tap="_startSearch"></paper-icon-button>
+      </paper-toolbar>
+      <!-- </paper-fab-morph> -->
+  </template>
+
+  <script>
+    Polymer({
+      is: 'cart-counter',
+
+      properties: {
+        page: {
+          type: String,
+          reflectToAttribute: true,
+          observer: '_pageChanged',
+        },
+        user: Object,
+        data: {
+           type: Array,
+           notify: true,
+           observer: '_isEmpty'
+        },
+        empty: {
+           type: Boolean,
+           notify: true,
+           value: true
+        }
+      },
+      listeners: {
+         'carts.product-removed': '_undoListener',
+         'carts.cart-removed': '_updateCartList',
+         'drawer.app-drawer-transitioned': '_hideFabAndToolbar',
+         'voiceDialog.iron-overlay-closed': '_cancelVoice'
+      },
+      observers: [
+        '_routePageChanged(routeData.page)',
+        '_cartListChanged(data.splices)',
+      ],
+
+      _routePageChanged: function(page) {
+        this.page = page || 'cart';
+        if (!this.$.drawer.persistent) {
+          this.$.drawer.close();
+        }
+      },
+
+      _pageChanged: function(page) {
+         console.log(page);
+        // Load page import on demand. Show 404 page if fails
+        var resolvedPageUrl;
+        switch (page) {
+           case "cart":
+              resolvedPageUrl = this.resolveUrl("cart-element.html");
+              this.$.toolbarFab.style.visibility = "visible";
+              break;
+           case "settings":
+              resolvedPageUrl = this.resolveUrl("settings-element.html");
+            this._hideFabAndToolbar();
+              break;
+           default:
+              resolvedPageUrl = this.resolveUrl("my-view404.html");
+              this._hideFabAndToolbar();
+              break;
+        }
+        this.importHref(resolvedPageUrl, null, this._showPage404, true);
+      },
+
+      _showPage404: function() {
+        this.page = 'view404';
+      },
+      _authError: function (error) {
+         console.error(" Authentication error: ", error);
+      },
+      _toggleSignIn: function () {
+         if (this.user) {
+            this.$.auth.signOut()
+            .then(function (response) {
+               console.info("Log out successful", response);
+            })
+            .catch(function (response) {
+               console.error("Error signing out", response);
+            });
+         } else {
+            this.$.auth.signInAnonymously()
+            .then(function (response) {
+               console.info("Login successful");
+            })
+            .catch(function (error) {
+               console.error("ERROR LOGGING IN", error);
+            });
+         }
+      },
+      _undoListener: function (e) {
+         this.$.toast.element = e;
+         this.$.toast._show();
+      },
+      _openDialog: function () {
+         this.$.cartDialog.toggle();
+      },
+      _addCart: function () {
+         if (!this.$.cartName.invalid && this.$.cartName.value) {
+            this.$.cartDialog.toggle();
+            var cartsRef = firebase.database().ref("/carts");
+            var newCart = cartsRef.push();
+            newCart.set({
+               'name': this.$.cartName.value,
+               'user': this.user.uid
+            })
+            .then(function (response) {
+               console.info("Added cart", response);
+            });
+         } else {
+            this.$.cartName.invalid = true;
+         }
+      },
+      _isEmpty: function (data) {
+         return (data.length == 0);
+      },
+      _updateCartList: function (e) {
+         e.detail.item.user = this.user.uid;
+         this.$.toast.element = e;
+         this.$.toast._show();
+      },
+      _cartListChanged: function (changeData) {
+         this.empty = (this.data.length <= 0);
+      },
+      _hideToolbar: function (e) {
+         e.stopPropagation();
+         if (this.$.toolbarContent.style.visibility != "hidden") {
+            this.$.toolbarContent.style.visibility = "hidden";
+            this.$.toolbarFab.style.visibility = "visible";
+            this.$.carts.style.marginBottom = "0px";
+         }
+      },
+      _showToolbar: function () {
+         this.$.toolbarFab.style.visibility = "hidden";
+         this.$.toolbarContent.style.visibility = "visible";
+         this.$.carts.style.marginBottom = "70px";
+      },
+      _startOcr: function () {
+         if (canUse().ocr) {
+            console.debug("START OCR");
+         } else {
+            this._canNotUse("camera capture");
+         }
+      },
+      _startVoice: function () {
+         if (canUse().voice) {
+            console.debug("START VOICE");
+            this.$.voiceDialog.toggle();
+            promptProduct(this);
+         } else {
+            this._canNotUse("speech recognition");
+         }
+      },
+      _startSearch: function () {
+         if (canUse().search) {
+            console.debug("START SEARCH");
+         } else {
+            console.debug("Please use a different browser!");
+         }
+      },
+      _canNotUse: function (type) {
+         // Use JQuery to append the dialog
+         var dialog = Polymer.dom(this.root).querySelector('#canUseDialog');
+         $(dialog).empty(); //Make sure the element is empty
+         $(dialog).append("<h2>We\'re sorry...</h2>");
+         $(dialog).append("<p>It looks like you're using a browser or device that doesn't support " + type + " :(</p>");
+         $(dialog).append("<p>If you are specifically using an Apple device, fill out <a href=\"#\">this form</a> to let us know you want CartCounter on iOS.</p>");
+         $(dialog).append("<p>Optionally, if you have a speech-recognition enabled keyboard, click below to use that.</p>");
+         $(dialog).append("<a dialog-confirm><paper-button raised>OK</paper-button></a>");
+         $(dialog).append("<a><paper-button id=\"keyboard\" style=\"background: #53aca1; color: white;\" raised>Use Keyboard</paper-button></a>");
+         $(dialog).find("#keyboard").click({ parent: this }, function (event) {
+            $(dialog).empty();
+            $(dialog)[0].close();
+            event.data.parent._keyboardVoice();
+         });
+         this.$.canUseDialog.toggle();
+      },
+      _hideFabAndToolbar: function () {
+         if (this.$.drawer.opened) {
+            this.$.toolbarFab.style.visibility = "hidden";
+            this.$.toolbarContent.style.visibility = "hidden";
+            this.$.carts.style.marginBottom = "0px";
+         } else if(this.page == "cart") {
+            this.$.toolbarFab.style.visibility = "visible";
+         }
+      },
+      _cancelVoice: function () {
+         if (isRecording) {
+            recognition.stop();
+         }
+      },
+      _keyboardVoice: function () {
+         //Go here to do the voice keyboard stuff
+         this.$.voiceDialog.open();
+         promptProductKeyboard(this);
+      }
+    });
+  </script>
+</dom-module>

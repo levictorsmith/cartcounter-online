@@ -1,0 +1,106 @@
+<!--
+@license
+Copyright (c) 2017 CartCounter All Rights Reserved.
+-->
+<link rel="import" href="../bower_components/polymer/polymer.html">
+<link rel="import" href="../bower_components/iron-input/iron-input.html">
+<link rel="import" href="../bower_components/paper-icon-button/paper-icon-button.html">
+
+
+<dom-module id="number-picker">
+  <template>
+    <style>
+      :host {
+         position: relative;
+         padding-top: 18px;
+         padding-bottom: 18px;
+         width: 30px;
+      }
+      .up-down-button {
+         position: absolute;
+         padding: 0;
+         min-width: 30px;
+         min-height: 30px;
+         max-width: 30px;
+         max-height: 30px;
+      }
+      .bottom {
+         bottom: 0px;
+      }
+      .top {
+         top: 0px;
+      }
+      input[type='number'] {
+         -moz-appearance:textfield;
+      }
+      input[type=number]::-webkit-inner-spin-button,
+      input[type=number]::-webkit-outer-spin-button {
+         -webkit-appearance: none;
+         margin: 0;
+      }
+      input::-webkit-outer-spin-button,
+      input::-webkit-inner-spin-button {
+          /* display: none; <- Crashes Chrome on hover */
+          -webkit-appearance: none;
+          margin: 0; /* <-- Apparently some margin are still there even though it's hidden */
+      }
+      #number {
+         border: none;
+         width: inherit;
+         text-align: center;
+      }
+      #number:focus {
+         outline: none;
+      }
+    </style>
+      <paper-icon-button
+         class="up-down-button top"
+         on-tap="_increment"
+         tabindex="-1"
+         icon="icons:expand-less">
+      </paper-icon-button>
+      <input
+         id="number"
+         is="iron-input"
+         value-as-number="{{quantity::input}}"
+         type="number"
+         required
+         on-blur="_validateQuant"
+         allowed-pattern="[0-9]*">
+      <paper-icon-button
+         class="up-down-button bottom"
+         on-tap="_decrement"
+         tabindex="-1"
+         icon="icons:expand-more">
+      </paper-icon-button>
+   </template>
+
+  <script>
+    Polymer({
+      is: 'number-picker',
+      properties: {
+         quantity: {
+            type: Number,
+            notify: true
+         }
+      },
+      listeners: {
+         'product-changed': '_validateQuant'
+      },
+      _increment: function () {
+         if (!this.quantity) { this.quantity = 0; }
+         ++this.quantity;
+         this.fire('product-changed');
+      },
+      _decrement: function () {
+         if (!this.quantity) { this.quantity = 0; }
+         --this.quantity;
+         this.fire('product-changed');
+      },
+      _validateQuant: function () {
+         if (!this.quantity) { this.quantity = 1; }
+      }
+    });
+
+  </script>
+</dom-module>

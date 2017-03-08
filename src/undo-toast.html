@@ -1,0 +1,70 @@
+<!--
+@license
+Copyright (c) 2016 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<link rel="import" href="../bower_components/polymer/polymer.html">
+<link rel="import" href="../bower_components/paper-toast/paper-toast.html">
+
+<dom-module id="undo-toast">
+  <template>
+    <style>
+      .yellow-button {
+         text-transform: none;
+         color: #eeff41;
+      }
+    </style>
+    <paper-toast id="toast" text="Removed " duration="5000">
+      <paper-button class="yellow-button" on-click="_redoItem">Undo</paper-button>
+    </paper-toast>
+   </template>
+
+  <script>
+    Polymer({
+      is: 'undo-toast',
+      properties: {
+         element: Object
+      },
+      _show: function () {
+         this.$.toast.text = "Removed " + this.element.detail.item.name;
+         this.$.toast.show();
+      },
+      _redoItem: function () {
+         var item = this.element.detail.item;
+         if (item.type == 'product') {
+            var dbRef = firebase.database().ref("/purchasedProducts");
+            var newProduct = dbRef.push();
+            newProduct.set({
+               'cart': item.cart,
+               'name': item.name,
+               'price': item.price,
+               'quantity': item.quantity
+            });
+         } else {
+            var dbRef = firebase.database().ref("/carts");
+            var newCart = dbRef.push();
+            newCart.set({
+               'name': item.name,
+               'user': item.user
+            });
+            var productRef = firebase.database().ref("/purchasedProducts");
+            for (product of item.products) {
+               var newProduct = productRef.push();
+               newProduct.set({
+                  'cart': newCart.key,
+                  'name': product.name,
+                  'price': product.price,
+                  'quantity': product.quantity
+               });
+            }
+         }
+         this.$.toast.hide();
+      }
+    });
+  </script>
+</dom-module>

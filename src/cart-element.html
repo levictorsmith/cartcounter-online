@@ -10,19 +10,58 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
 <link rel="import" href="../bower_components/polymer/polymer.html">
 <link rel="import" href="product-item.html">
+<link rel="import" href="number-picker.html">
 <link rel="import" href="shared-styles.html">
-<link rel="import" href="../bower_components/paper-toast/paper-toast.html">
 <link rel="import" href="../bower_components/iron-icons/iron-icons.html">
+<link rel="import" href="../bower_components/paper-icon-button/paper-icon-button.html">
 
 <dom-module id="cart-element">
   <template>
     <style include="shared-styles">
-      :host {
-        /*display: block;*/
-        /*padding: 10px;*/
-      }
-      h3 {
+       p, h2, h3 {
          margin: 0;
+      }
+      .remove {
+         margin: 0;
+      }
+      .remove:hover {
+         color: var(--app-accent-color);
+      }
+      .header {
+         display: flex;
+         justify-content: space-between;
+         align-items: center;
+         width: 100%;
+      }
+      .card {
+         position: relative;
+      }
+      #total {
+         display: flex;
+         align-items: center;
+         justify-content: space-between;
+         margin: 0px auto;
+         max-width: 430px;
+         width: 65%;
+      }
+      .close {
+         position: absolute;
+         right: 0;
+         top: 0;
+         margin-right: 0.5em;
+         margin-top: 0.5em;
+      }
+      #cartName {
+         position: absolute;
+         left: 0;
+         top: 0;
+         margin-left: 0.86em;
+         margin-top: 0.86em;
+         color: var(--app-secondary-color);
+      }
+      .totalItem {
+         display: inline-flex;
+         margin: 0px 1em;
       }
     </style>
 
@@ -36,7 +75,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     </firebase-query>
 
     <div class="card">
-      <h3>[[cartName]]</h3>
+         <h3 id="cartName">[[cartName]]</h3>
+         <div id="total">
+            <h3 class="totalItem ">Total:</h3>
+            <p class="totalItem">{{total}}</p>
+         </div>
+      <paper-icon-button class="close" icon="icons:close" class="remove" on-tap="_deleteCart"></paper-icon-button>
          <!-- Stationary empty item -->
          <product-item id="emptyItem" cart-id="[[cartId]]" on-blur="_submitProduct" on-keydown="_enterPress"></product-item>
          <hr>
@@ -44,7 +88,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             <!-- Load the items from Firebase -->
             <iron-swipeable-container on-iron-swipe="_removeProduct">
                <template id="productList" is="dom-repeat" items="{{data}}" as="product">
-                  <!-- <hr> -->
                   <product-item
                      class="purchased"
                      name="{{product.name}}"
@@ -63,32 +106,30 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     Polymer({
       is: 'cart-element',
       properties: {
-         cartId: {
-            type: String,
-            observer: '_cartIdObserver'
-         },
+         cartId: String,
          cartName: String,
-         data: {
-            type: Array,
-            observer: '_dataChanged'
-         },
+         data: Array,
          savedItem: {
             type: Object
-         }
+         },
+         total: {
+            type: String,
+            value: "$0.00"
+         },
       },
-
-      _cartIdObserver: function(newData, oldData) {
+      listeners: {
+         'product-changed': '_productListChanged'
       },
-      _dataChanged: function (newData, oldData) {
-         //Do something when the query returns values
-      },
+      observers: [
+         '_productListChanged(data.splices)'
+      ],
       _submitProduct: function () {
          if (this._validate()) {
-            console.log("Valid product");
             // Add the product to Firebase
             this.$.emptyItem._pushProduct();
             // Clear the empty item
             this.$.emptyItem._clear();
+            this.$.emptyItem._requestFocus();
          }
       },
       _validate: function () {
@@ -98,23 +139,61 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
          const index = this.$.productList.indexForElement(e.detail.target);
          const item = this.data[index];
          this.savedItem = item;
+         this.savedItem.type = 'product';
          var dbRef = firebase.database().ref("/purchasedProducts/" + item.$key);
-         dbRef.remove(function () {
-            // TODO: Add functionality to undo
-            var toast = document.querySelector("my-app").shadowRoot.querySelector("#removedToast");
-            toast.text = "Removed something";
-            toast.open();
-         })
+         dbRef.remove()
               .then(function () {
-                 console.log("Remove succeeded");
-              })
+                 this.fire('product-removed', {item: this.savedItem});
+                 console.info("Product removed");
+              }.bind(this))
               .catch(function (error) {
-                 console.log("Remove failed: " + error);
+                 console.error("Remove failed: ", error);
               });
       },
       _enterPress: function (e) {
          if (e.keyCode === 13) {
             this._submitProduct();
+         }
+      },
+      _deleteCart: function () {
+         // Delete the products in the cart
+         this.fire('cart-removed', { item: { type: 'cart', name: this.cartName, $key: this.cartId, user: "", products: this.data.slice() }});
+         var productQuery = firebase.database().ref("/purchasedProducts").orderByChild("cart").equalTo(this.cartId);
+         productQuery.once('value')
+            .then(function (productsInCart) {
+               productsInCart.forEach(function (product) {
+                  product.ref.remove()
+                     .then(function () {
+                        console.info("Remove succeeded");
+                     })
+                     .catch(function (error) {
+                        console.error("Remove failed", error);
+                     });
+               });
+            });
+         // Delete the cart
+         var cartRef = firebase.database().ref("/carts/" + this.cartId);
+         cartRef.remove()
+            .then(function () {
+               console.info("Removed cart");
+            })
+            .catch(function (error) {
+               console.error("Error removing cart", error);
+            });
+      },
+      _productListChanged: function (changedData) {
+         if (changedData && this.data) {
+            var totalPrice = 0;
+
+            for (product of this.data) {
+               totalPrice += (product.price * product.quantity);
+            }
+            if (totalPrice == 0) {
+               this.total = "$0.00";
+            } else {
+               var temp = String(totalPrice);
+               this.total = "$" +temp.slice(0, temp.length - 2) + "." + temp.slice(temp.length - 2);
+            }
          }
       }
     });

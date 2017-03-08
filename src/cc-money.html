@@ -9,7 +9,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 -->
 
 <link rel="import" href="../bower_components/polymer/polymer.html">
-<link rel="import" href="includes.html">
+<link rel="import" href="../bower_components/paper-input/paper-input.html">
 
 <dom-module id="cc-money">
   <template>
@@ -20,7 +20,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     </style>
       <paper-input
          id="priceInput"
-         label="Price"
          value="{{displayPrice}}"
          required
          auto-validate
@@ -68,6 +67,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
          this.price = Number(final);
          final = final.slice(0, final.length - 2) + "." + final.slice(final.length - 2);
          this.displayPrice = final;
+         this.fire("product-changed");
       },
       _updatePrice: function (newValue, oldValue) {
          this.displayPrice = String(newValue).replace(/\D*/g,"");

@@ -9,29 +9,52 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 -->
 
 <link rel="import" href="../bower_components/polymer/polymer.html">
+<link rel="import" href="product-item.html">
 <link rel="import" href="shared-styles.html">
 
-<dom-module id="my-view2">
+<dom-module id="settings-element">
   <template>
     <style include="shared-styles">
       :host {
         display: block;
-
-        padding: 10px;
+      }
+      .setting {
+         display: flex;
+         background-color: lightGray;
+         width: 75%;
+         padding: 1em;
+         justify-content: space-between;
+         margin: 0.5em auto;
+      }
+      paper-input {
+         margin-left: 1em;
+         margin-right: 1em;
+         width: 20%;
       }
     </style>
 
     <div class="card">
-      <div class="circle">2</div>
-      <h1>View Two</h1>
-      <p>Ea duis bonorum nec, falli paulo aliquid ei eum.</p>
-      <p>Id nam odio natum malorum, tibique copiosae expetenda mel ea.Detracto suavitate repudiandae no eum. Id adhuc minim soluta nam.Id nam odio natum malorum, tibique copiosae expetenda mel ea.</p>
+      <!-- <div class="circle">1</div> -->
+      <h1>Settings</h1>
+      <hr>
+      <div class="setting">
+         <h3>Tax</h3>
+         <paper-input label="Tax" value="{{tax}}" auto-validate prevent-invalid-input allowed-pattern="[\d|.]">
+            <div suffix>%</div>
+         </paper-input>
+      </div>
     </div>
   </template>
 
   <script>
     Polymer({
-      is: 'my-view2',
+      is: 'settings-element',
+      properties: {
+         tax: {
+            type: Number,
+            value: 0
+         }
+      }
     });
   </script>
 </dom-module>

@@ -9,61 +9,41 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 -->
 
 <link rel="import" href="../bower_components/polymer/polymer.html">
-<link rel="import" href="includes.html">
+<link rel="import" href="../bower_components/paper-input/paper-input.html">
+<link rel="import" href="number-picker.html">
 <link rel="import" href="cc-money.html">
-<link rel="import" href="shared-styles.html">
 
 <dom-module id="product-item">
   <template>
-    <style include="shared-styles">
-
-      .p-container {
+    <style>
+      :host {
+         margin: auto;
          display: inline-flex;
          justify-content: center;
          width: 100%;
-      }
-
-      paper-input, paper-input-container {
-         margin-left: 5px;
-         margin-right: 5px;
       }
       #name {
          width: 15em;
       }
       #quantity {
-         width: 5em;
+         margin-left: 5px;
+         margin-right: 5px;
+         width: 30px;
       }
       #price {
          width: 10em;
       }
-
     </style>
-       <div class="p-container swipe">
-         <paper-input
-            id="name"
-            label="Product"
-            value="{{name}}"
-            required
-            auto-validate
-            error-message="Enter name">
-         </paper-input>
-         <paper-input-container id="quantity" auto-validate>
-            <label># of</label>
-            <input
-               id="quantityInput"
-               is="iron-input"
-               type="number"
-               value-as-number="{{quantity::input}}"
-               required
-               pattern="[0-9]*" on-blur="_fillQuant">
-            <paper-input-error>Enter quantity</paper-input-error>
-         </paper-input-container>
-         <cc-money
-            id="price"
-            price="{{price}}">
-         </cc-money>
-       </div>
-
+      <paper-input
+         id="name"
+         placeholder="Product"
+         value="{{name}}"
+         required
+         auto-validate
+         error-message="Enter name">
+      </paper-input>
+      <number-picker id="quantity" quantity="{{quantity}}"></number-picker>
+      <cc-money id="price" price="{{price}}"></cc-money>
   </template>
 
   <script>
@@ -95,16 +75,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
          }
       },
       _validate: function (newVal, oldVal) {
-         if (this.name && this.quantity && this.price) {
+         if (this.name && this.price) {
             this.valid = true;
          } else {
             this.valid = false;
          }
-      },
-      _fillQuant: function () {
-         // if (!this.quantity) {
-         //    this.quantity = 1;
-         // }
       },
       _pushProduct: function () {
          var dbRef = firebase.database().ref("/purchasedProducts");
@@ -114,15 +89,22 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             'name': this.name,
             'price': this.price,
             'quantity': this.quantity
-         });
-         console.log("Pushed Product");
+         })
+            .then(function () {
+               console.info("Product pushed");
+            })
+            .catch(function (error) {
+               console.error("Error pushing product: ", error);
+            });
       },
       _clear: function () {
          this.$.name.value = "";
-         this.$.quantityInput.value = "";
+         this.$.quantity.quantity = "";
          this.$.price.price = "0.00";
+      },
+      _requestFocus: function () {
+         this.$.name.$.input.focus();
       }
     });
-
   </script>
 </dom-module>
