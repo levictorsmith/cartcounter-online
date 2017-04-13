@@ -245,11 +245,6 @@ function canUse() {
   if (isChrome) {
     return { browser: "chrome", voice: true, ocr: true, search: true };
   } else if (isOpera) {
-    var OSName="Unknown OS";
-    if (navigator.appVersion.indexOf("Win")!=-1) OSName="Windows";
-    // if (navigator.appVersion.indexOf("Mac")!=-1) OSName="MacOS";
-    // if (navigator.appVersion.indexOf("X11")!=-1) OSName="UNIX";
-    // if (navigator.appVersion.indexOf("Linux")!=-1) OSName="Linux";
     return { browser: "opera", voice: false, ocr: true, search: true };
   } else if (isFirefox) {
     return { browser: "firefox", voice: false, ocr: true, search: true };

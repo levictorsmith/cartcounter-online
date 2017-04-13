@@ -23,6 +23,8 @@
     },
     "speech-recognition" : {
       "description" : "Speech recognition"
-    }
+    },
+    "geolocation" : {
+      "description" : "Geolocation"
   }
 }

@@ -47,7 +47,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     <meta name="msapplication-TileColor" content="#53aca1">
     <meta name="msapplication-tap-highlight" content="no">
 
-    <!-- <script src="https://code.jquery.com/jquery-2.1.4.js"></script> -->
+    <script src="https://code.jquery.com/jquery-2.1.4.js"></script>
     <script>
       // Setup Polymer options
       window.Polymer = {
@@ -94,11 +94,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         });
       }
     </script>
+    <script type="text/javascript">
+       $('body').ready(function () {
+          $("#spinner")[0].loading = true;
+       });
+
+    </script>
     <script type="text/javascript" src="src/voice.js"></script>
 
 
-    <link rel="import" href="/src/cart-counter.html">
-
+    <link rel="import" href="src/cart-counter.html">
     <style>
       body {
         margin: 0;
@@ -110,6 +115,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     </style>
   </head>
   <body>
+     <spinner-backdrop id="spinner"></spinner-backdrop>
     <cart-counter></cart-counter>
   </body>
 </html>

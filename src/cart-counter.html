@@ -8,29 +8,7 @@ Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 -->
 
-<link rel="import" href="../bower_components/polymer/polymer.html">
-<link rel="import" href="../bower_components/app-layout/app-drawer/app-drawer.html">
-<link rel="import" href="../bower_components/app-layout/app-drawer-layout/app-drawer-layout.html">
-<link rel="import" href="../bower_components/app-layout/app-header/app-header.html">
-<link rel="import" href="../bower_components/app-layout/app-header-layout/app-header-layout.html">
-<link rel="import" href="../bower_components/app-layout/app-scroll-effects/app-scroll-effects.html">
-<link rel="import" href="../bower_components/app-layout/app-toolbar/app-toolbar.html">
-<link rel="import" href="../bower_components/app-route/app-location.html">
-<link rel="import" href="../bower_components/app-route/app-route.html">
-<link rel="import" href="../bower_components/paper-dialog/paper-dialog.html">
-<link rel="import" href="../bower_components/paper-fab/paper-fab.html">
-<link rel="import" href="../bower_components/paper-menu/paper-menu.html">
-<link rel="import" href="../bower_components/paper-item/paper-item.html">
-<link rel="import" href="../bower_components/iron-dropdown/iron-dropdown.html">
-<link rel="import" href="../bower_components/paper-toolbar/paper-toolbar.html">
-<link rel="import" href="../bower_components/iron-icon/iron-icon.html">
-<link rel="import" href="../bower_components/paper-fab-transitions/paper-fab-transitions.html">
-<link rel="import" href="shared-styles.html">
-<link rel="import" href="undo-toast.html">
-<link rel="import" href="cart-element.html">
-<link rel="import" href="settings-element.html">
-<link rel="import" href="includes.html">
-<script src="https://code.jquery.com/jquery-2.1.4.js"></script>
+<link rel="import" href="includes.vulcanized.html">
 <dom-module id="cart-counter">
   <template>
     <style include="shared-styles">
@@ -44,7 +22,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       app-header paper-icon-button {
         --paper-icon-button-ink-color: white;
       }
-
+    
       .drawer-list {
         margin: 0 20px;
       }
@@ -62,7 +40,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         font-weight: bold;
       }
       .blue {
-         margin: 1em 0 1em 1em;
          color: white;
          background-color: var(--app-primary-color);
       }
@@ -90,6 +67,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       #canUseDialog {
          padding-bottom: 1em;
       }
+      .button {
+         height: 3em;
+         margin: 0 24px;
+      }
     </style>
     <firebase-app
       id="fireApp"
@@ -110,17 +91,29 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
          limit-by-last="3"
          data="{{data}}">
     </firebase-query>
+    <geo-location id="location"></geo-location>
     <undo-toast id="toast"></undo-toast>
     <paper-dialog id="cartDialog" entry-animation="scale-up-animation" exit-animation="fade-out-animation" with-backdrop>
        <h2>Enter Cart Name</h2>
        <div style="display: inline-flex;">
           <paper-input id="cartName" label="Name" auto-validate required error-message="Enter name"></paper-input>
-          <paper-button class="blue" on-click="_addCart" raised>Add Cart</paper-button>
+          <paper-button class="blue" on-click="_addCart" raised style="margin: 1em 0 1em 1em;">Add Cart</paper-button>
        </div>
     </paper-dialog>
-    <paper-dialog id="canUseDialog" entry-animation="scale-up-animation" exit-animation="fade-out-animation" with-backdrop>
-    </paper-dialog>
+    <paper-dialog id="canUseDialog" entry-animation="scale-up-animation" exit-animation="fade-out-animation" with-backdrop></paper-dialog>
     <paper-dialog id="voiceDialog" entry-animation="scale-up-animation" exit-animation="scale-down-animation" with-backdrop></paper-dialog>
+    <paper-dialog id="logInDialog" entry-animation="scale-up-animation" exit-animation="fade-out-animation">
+      <h2>Log In</h2>
+      <form id="loginForm">
+         <paper-input id="emailInput" label="Email" type="email" error-message="Please enter valid email" name="username"></paper-input>
+         <paper-input id="passwordInput" label="Password" type="password" error-message="Invalid password" required name="password"></paper-input>
+         <paper-button id="signUp" class="button" raised>Sign Up</paper-button>
+         <paper-button id="signIn" class="blue button" raised on-tap="_attemptSignIn">Sign In</paper-button>
+      </form>
+      <hr>
+      <paper-button class="button">Google</paper-button>
+      <paper-button class="button">Sign In as Guest</paper-button>
+    </paper-dialog>
     <app-location route="{{route}}"></app-location>
     <app-route
         route="{{route}}"
@@ -194,6 +187,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   </template>
 
   <script>
+  const TAX_API_KEY = "MaxMT7nlWemNNAes9CbYvYQovSY7aR/cdpboK24oovpz+wQPWHudmPH+AGbfowMaFd/c1lvs8PnWcJtyiqF3hQ==";
+  const TAX_API_URL = "https://taxrates.api.avalara.com/postal?country=usa&postal=";
+  const GEO_API_KEY = "AIzaSyAdkBZQn0zjsHnzpPGG5yySBwHJlNm9b54";
+  const GEO_API_URL = "https://maps.googleapis.com/maps/api/geocode/json?latlng=";
     Polymer({
       is: 'cart-counter',
 
@@ -213,19 +210,30 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
            type: Boolean,
            notify: true,
            value: true
+        },
+        tax: {
+           type: Number,
+           notify: true,
+           value: 0
         }
       },
       listeners: {
          'carts.product-removed': '_undoListener',
          'carts.cart-removed': '_updateCartList',
          'drawer.app-drawer-transitioned': '_hideFabAndToolbar',
-         'voiceDialog.iron-overlay-closed': '_cancelVoice'
+         'voiceDialog.iron-overlay-closed': '_cancelVoice',
+         'location.geo-response': '_setTax'
       },
       observers: [
         '_routePageChanged(routeData.page)',
         '_cartListChanged(data.splices)',
       ],
-
+      ready: function () {
+         setTimeout(function () {
+            var spinner = document.body.querySelector('spinner-backdrop');
+            spinner.loading = false;
+         }, 1000);
+      },
       _routePageChanged: function(page) {
         this.page = page || 'cart';
         if (!this.$.drawer.persistent) {
@@ -270,13 +278,33 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
                console.error("Error signing out", response);
             });
          } else {
-            this.$.auth.signInAnonymously()
+            //Show the dialog
+            this.$.logInDialog.toggle();
+         }
+      },
+      _attemptSignIn: function () {
+         if (!this.$.emailInput.validate() || !this.$.passwordInput.validate()) {
+            console.debug("Invalid credentials");
+         } else {
+            this.$.auth.signInWithEmailAndPassword(this.$.emailInput.value, this.$.passwordInput.value)
             .then(function (response) {
+               this.$.emailInput.value = "";
+               this.$.passwordInput.value = "";
+               this.$.logInDialog.toggle();
+               this.$.loginForm.submit();
                console.info("Login successful");
-            })
+            }.bind(this))
             .catch(function (error) {
-               console.error("ERROR LOGGING IN", error);
-            });
+               console.error("Error logging in", error);
+               switch (error.code) {
+                  case "auth/wrong-password":
+                     this.$.passwordInput.invalid = true;
+                     break;
+                  case "auth/user-not-found":
+                     this.$.emailInput.invalid = true;
+                     break;
+               }
+            }.bind(this));
          }
       },
       _undoListener: function (e) {
@@ -384,7 +412,42 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
          //Go here to do the voice keyboard stuff
          this.$.voiceDialog.open();
          promptProductKeyboard(this);
-      }
+      },
+      _setTax: function (e) {
+         var zipcode;
+         if (this.$.location.position !== "undefined") {
+            console.debug("Location: ", this.$.location.latitude, this.$.location.longitude);
+            $.ajax({
+               url: GEO_API_URL + encodeURIComponent(this.$.location.latitude) + "," +
+               encodeURIComponent(this.$.location.longitude) + "&key=" +
+               encodeURIComponent(GEO_API_KEY),
+               dataType: 'json',
+               type: 'get',
+               context: this,
+               success: function (response) {
+                  var locatComponents = response.results[0].address_components;
+                  for (component of locatComponents) {
+                     if (component.types[0] == "postal_code") {
+                        zipcode = component.long_name;
+                     }
+                  }
+               },
+               complete: function () {
+                  $.ajax({
+                     url: TAX_API_URL + zipcode + "&apikey=" + encodeURIComponent(TAX_API_KEY),
+                     dataType: 'json',
+                     type: 'get',
+                     context: this,
+                     success: function (response) {
+                        this.tax = response.totalRate / 100;
+                        localStorage.setItem("tax", this.tax);
+                        this.fire('tax-changed', {tax: true});
+                     }
+                  });
+               }
+            });
+         }
+      },
     });
   </script>
 </dom-module>

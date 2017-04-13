@@ -8,13 +8,6 @@ Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 -->
 
-<link rel="import" href="../bower_components/polymer/polymer.html">
-<link rel="import" href="product-item.html">
-<link rel="import" href="number-picker.html">
-<link rel="import" href="shared-styles.html">
-<link rel="import" href="../bower_components/iron-icons/iron-icons.html">
-<link rel="import" href="../bower_components/paper-icon-button/paper-icon-button.html">
-
 <dom-module id="cart-element">
   <template>
     <style include="shared-styles">
@@ -123,6 +116,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       observers: [
          '_productListChanged(data.splices)'
       ],
+      ready: function () {
+         //Don't judge me...
+         document.addEventListener('tax-changed', function () {
+            this._productListChanged("TAX");
+         }.bind(this));
+      },
       _submitProduct: function () {
          if (this._validate()) {
             // Add the product to Firebase
@@ -182,12 +181,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             });
       },
       _productListChanged: function (changedData) {
-         if (changedData && this.data) {
+         if ((changedData && this.data) || (changedData == "TAX")) {
             var totalPrice = 0;
 
             for (product of this.data) {
                totalPrice += (product.price * product.quantity);
             }
+            //Add tax
+            var tax;
+            if(!this.domHost) {
+               tax = localStorage.getItem("tax") || 0;
+            } else {
+               tax = this.domHost.tax;
+            }
+            totalPrice += Math.round(totalPrice * tax); // DomHost is the parent element...it's a workaround
             if (totalPrice == 0) {
                this.total = "$0.00";
             } else {
